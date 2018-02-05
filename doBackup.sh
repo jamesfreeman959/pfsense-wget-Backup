@@ -5,9 +5,20 @@ password=$3;
 
 ([ -z "$hostname" ] || [ -z "$username" ] || [ -z "$password" ]) && echo "all 3 arguments must be specified: hostname username password " && exit 1;
 
-csrf=$(curl -Ss --insecure --cookie-jar /tmp/$hostname-cookies.txt https://$hostname/diag_backup.php | sed -n 's/.*name=.__csrf_magic. value="\([^"]*\)".*/\1/p')
-csrf2=$(curl -Ss --insecure --location --cookie-jar /tmp/$hostname-cookies.txt --cookie /tmp/$hostname-cookies.txt --data "login=Login&usernamefld=$username&passwordfld=$password&__csrf_magic=$csrf" https://$hostname/diag_backup.php | sed -n 's/.*var csrfMagicToken = "\([^"]*\)".*/\1/p')
+wget -qO- --keep-session-cookies --save-cookies /tmp/$hostname-cookies.txt \
+  --no-check-certificate https://$hostname/diag_backup.php \
+  | grep "name='__csrf_magic'" | sed 's/.*value="\(.*\)".*/\1/' > /tmp/$hostname-csrf.txt
 
-curl -Ss --insecure --cookie /tmp/$hostname-cookies.txt --cookie-jar /tmp/$hostname-cookies.txt --data "Submit=download&donotbackuprrd=yes&__csrf_magic=$csrf2" https://$hostname/diag_backup.php > config-router-`date +%Y%m%d%H%M%S`.xml
+wget -qO- --keep-session-cookies --load-cookies /tmp/$hostname-cookies.txt \
+  --save-cookies /tmp/$hostname-cookies.txt --no-check-certificate \
+  --post-data "login=Login&usernamefld=$username&passwordfld=$password&__csrf_magic=$(cat /tmp/$hostname-csrf.txt)" \
+  https://$hostname/diag_backup.php  | grep "name='__csrf_magic'" \
+  | sed 's/.*value="\(.*\)".*/\1/' > /tmp/$hostname-csrf2.txt
 
-rm /tmp/$hostname-cookies.txt;
+wget --keep-session-cookies --load-cookies /tmp/$hostname-cookies.txt --no-check-certificate \
+  --post-data "download=download&donotbackuprrd=yes&__csrf_magic=$(head -n 1 /tmp/$hostname-csrf2.txt)" \
+  https://$hostname/diag_backup.php -O config-router-`date +%Y%m%d%H%M%S`.xml
+
+
+rm /tmp/$hostname-cookies.txt /tmp/$hostname-csrf*.txt
+
