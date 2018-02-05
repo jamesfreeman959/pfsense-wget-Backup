@@ -2,6 +2,7 @@
 hostname=$1;
 username=$2;
 password=$3;
+backuppath=$4;
 
 ([ -z "$hostname" ] || [ -z "$username" ] || [ -z "$password" ]) && echo "all 3 arguments must be specified: hostname username password " && exit 1;
 
@@ -17,7 +18,7 @@ wget -qO- --keep-session-cookies --load-cookies /tmp/$hostname-cookies.txt \
 
 wget --keep-session-cookies --load-cookies /tmp/$hostname-cookies.txt --no-check-certificate \
   --post-data "download=download&donotbackuprrd=yes&__csrf_magic=$(head -n 1 /tmp/$hostname-csrf2.txt)" \
-  https://$hostname/diag_backup.php -O config-router-`date +%Y%m%d%H%M%S`.xml
+  https://$hostname/diag_backup.php -O $backuppath/config-router-`date +%Y%m%d%H%M%S`.xml
 
 
 rm /tmp/$hostname-cookies.txt /tmp/$hostname-csrf*.txt
